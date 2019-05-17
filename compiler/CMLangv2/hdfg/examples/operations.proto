@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package hdfg;
+import "types.proto";
+
+message OperatorDefinition {
+
+    string name = 1;
+    string framework = 2;
+    repeated string input_ids = 3;
+    repeated string output_ids = 4;
+    DataType type = 5;
+    map<string, Attribute> def_attributes = 6;
+
+}
+
+message Operator {
+    // Unique Operand ID
+    int64 id = 1;
+    OperatorDefinition def = 2;
+
+    // ID of containing component
+    int64 parent_cid = 3;
+
+    string parent_cdef = 4;
+
+    // Zero or more input queues for the component to read from and operate on
+    map<string, Edge> inputs = 5;
+    // Map of output names to the corresponding edge(s) to be written to
+    map<string, EdgeInfo> outputs = 6;
+    map<string, Attribute> attributes = 7;
+
+}

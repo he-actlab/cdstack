@@ -1,0 +1,72 @@
+spring a(output f_1, output f_2)
+{
+    lines = file_read('csv', 'data.txt');
+
+    f_1 = int(lines[0]);
+    f_2 = int(lines[1]);
+
+
+}
+
+component bc(input f_1, output f_6)
+{
+  flow f_5;
+
+  b(f_1, f_5);
+  c(f_5, f_6);
+
+}
+
+component b(input f_1, output f_5)
+{
+  // write to f_5 using f_1
+  f_5 = f_1 * 2;
+}
+
+component c(input f_5, output f_6)
+{
+  // write to f_6 using f_5
+  f_6 = f_5 % 2;
+}
+
+component de(input f_2, output f_3, output f_4)
+{
+  d(f_2, f_3);
+  e(f_2, f_4);
+}
+
+component d(input f_2, output f_3)
+{
+  // write to f_3 using f_2
+  f_3 = f_2^3;
+}
+
+component e(input f_2, output f_4)
+{
+  // write to f_4 using f_2
+  f_4 = f_2-100;
+}
+
+
+reservoir f(input f_3, input f_4, input f_6)
+{
+  file_write(f_3, 'csv', 'results1.txt');
+  file_write(f_4, 'csv', 'results2.txt');
+  file_write(f_6, 'csv', 'results3.txt');
+}
+
+
+component main()
+{
+    flow f_1, f_2;
+    a(f_1, f_2);
+
+    flow f_3, f_4;
+    de(f2, f_3, f_4);
+
+    flow f_6;
+    bc(f_1, f_6);
+
+    f(f_3, f_4, f_6);
+
+}

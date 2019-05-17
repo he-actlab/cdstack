@@ -1,0 +1,291 @@
+syntax = "proto3";
+
+package hdfg;
+
+message Graph {
+    string graph_name = 1;
+    Component main_component = 2;
+    map<string, ComponentDefinition> component_definitions = 3;
+    map<string, Attribute> graph_attributes = 4;
+    string doc_string = 5;
+
+}
+message ComponentDefinition {
+    string cname = 1;
+    map<string, EdgeInfo> inputs = 2;
+    map<string, EdgeInfo> outputs = 3;
+    map<string, EdgeInfo> states = 4;
+    map<string, EdgeInfo> params = 5;
+    map<string, EdgeInfo> sub_edges = 6;
+    map<string, ComponentDefinition> sub_components = 7;
+    map<string, Attribute> def_attributes = 8;
+    repeated string ordered_args = 9;
+    bool is_op = 10;
+    string op_name = 11;
+    bool is_predicated = 12;
+    bool predicate_val = 13;
+    string pred_id = 14;
+    repeated string sub_component_ids = 15;
+
+}
+
+message EdgeInfo {
+
+    // Local name unique within component
+    string local_name = 1;
+
+    // Parent component definition name
+    string parent_cdef = 2;
+    repeated int64 iposition = 3;
+    repeated int64 oposition = 4;
+
+    DataType type = 5;
+
+    bool is_queue = 6;
+    bool is_state = 7;
+    bool is_parameter = 8;
+    bool is_static = 9;
+    bool is_index = 10;
+    // A human-readable documentation for this tensor. Markdown is allowed.
+    string doc_string = 11;
+
+    // Variable dimension names to be mapped to dimension values
+    repeated string dims = 12;
+    // If parameter, a default value can be used
+    Attribute default = 13;
+    repeated string local_src = 14;
+    repeated string local_dst = 15;
+    Attribute lower = 16;
+    Attribute upper = 17;
+    string local_var_id = 18;
+    string true_pred_id = 19;
+    string false_pred_id = 20;
+}
+message Component {
+	// Globally unique id for the component
+	int64 cid = 1;
+	// Component definition template which this component is based off of
+	ComponentDefinition cdef = 2;
+
+	// Unique ID of containing component
+	int64 parent_cid = 3;
+
+	// Definition ID of containing component
+	string parent_cdef_name = 4;
+
+	// Zero or more input queues for the component to read from and operate on.
+    // All inputs must map to the EdgeInfo contained within the ComponentDefinition
+	map<string,Edge> inputs = 5;
+
+	// Zero or more states which are read to and written from throughout execution
+    //All states must map to the EdgeInfo contained within the ComponentDefinition
+
+	map<string,Edge> states = 6;
+
+	// Zero or more static values to use throughout execution
+    //All parameters must map to the EdgeInfo contained within the ComponentDefinition
+
+	map<string,Edge> parameters = 7;
+
+	// Map of output names to the corresponding edge(s) to be written to
+    //All states must map to the EdgeInfo contained within the ComponentDefinition
+
+	map<string, Edge> outputs = 8;
+
+	// Map of metadata for extending graph usage
+	map<string, Attribute> attributes = 9;
+	// Defines a lower level of components contained within this node, sorted topologically
+	repeated Component sub_components = 10;
+
+
+}
+
+
+
+message Edge {
+     // Local name which can be mapped to EdgeInfo
+    string ename = 1;
+
+    message Index {
+        string idx_name = 1;
+        string idx_id = 2;
+        repeated int64 idx_val = 3;
+        int64 idx_dim = 4;
+        int64 lower = 5;
+        int64 upper = 6;
+    };
+    // Tensor content must be organized in row-major order.
+    //
+    // Depending on the data_type field, exactly one of the fields below with
+    // name ending in _data is used to store the elements of the tensor.
+
+    // For float and complex64 values
+    // Complex64 tensors are encoded as a single array of floats,
+    // with the real components appearing in odd numbered positions,
+    // and the corresponding imaginary component apparing in the
+    // subsequent even numbered position. (e.g., [1.0 + 2.0i, 3.0 + 4.0i]
+    // is encoded as [1.0, 2.0 ,3.0 ,4.0]
+    // When this field is present, the data_type field MUST be FLOAT or COMPLEX64.
+    repeated float float_data = 2 [packed = true];
+
+    // For int32, uint8, int8, uint16, int16, bool, and float16 values
+    // float16 values must be bit-wise converted to an uint16_t prior
+    // to writing to the buffer.
+    // When this field is present, the data_type field MUST be
+    // INT32, INT16, INT8, UINT16, UINT8, BOOL, or FLOAT16
+    repeated int32 int32_data = 3 [packed = true];
+
+    // For strings.
+    // Each element of string_data is a UTF-8 encoded Unicode
+    // string. No trailing null, no leading BOM. The protobuf "string"
+    // scalar type is not used to match ML community conventions.
+    // When this field is present, the data_type field MUST be STRING
+    repeated bytes string_data = 4;
+
+    // For int64.
+    // When this field is present, the data_type field MUST be INT64
+    repeated int64 int64_data = 5 [packed = true];
+
+
+    // Serializations can either use one of the fields above, or use this
+    // raw bytes field. The only exception is the string case, where one is
+    // required to store the content in the repeated bytes string_data field.
+    //
+    // When this raw_data field is used to store tensor value, elements MUST
+    // be stored in as fixed-width, little-endian order.
+    // Floating-point data types MUST be stored in IEEE 754 format.
+    // Complex64 elements must be written as two consecutive FLOAT values, real component first.
+    // Complex128 elements must be written as two consecutive DOUBLE values, real component first.
+    // Boolean type MUST be written one byte per tensor element (00000001 for true, 00000000 for false).
+    //
+    // Note: the advantage of specific field rather than the raw_data field is
+    // that in some cases (e.g. int data), protobuf does a better packing via
+    // variable length storage, and may lead to smaller binary footprint.
+    // When this field is present, the data_type field MUST NOT be STRING or UNDEFINED
+    bytes raw_data = 6;
+
+
+
+
+    // For double
+    // Complex128 tensors are encoded as a single array of doubles,
+    // with the real components appearing in odd numbered positions,
+    // and the corresponding imaginary component apparing in the
+    // subsequent even numbered position. (e.g., [1.0 + 2.0i, 3.0 + 4.0i]
+    // is encoded as [1.0, 2.0 ,3.0 ,4.0]
+    // When this field is present, the data_type field MUST be DOUBLE or COMPLEX128
+    repeated double double_data = 7 [packed = true];
+
+    // For uint64 and uint32 values
+    // When this field is present, the data_type field MUST be
+    // UINT32 or UINT64
+    repeated uint64 uint64_data = 8 [packed = true];
+    map<string, Attribute> attributes = 9;
+    // Unique Edge id
+    int64 eid = 10;
+    // Containing component unique ID
+    int64 cid = 11;
+    repeated int64 dims = 12;
+    int64 item_count = 13;
+    int64 destination_index = 14;
+    int64 desination_id = 15;
+    string destination_name = 16;
+    int64 source_index = 17;
+    int64 source_id = 18;
+    int64 source_name = 19;
+    repeated Index indices = 20;
+
+
+}
+
+
+
+message Attribute {
+  // LINT.IfChange
+  message ListValue {
+    repeated string s = 2;                        // "list(string)"
+    repeated int64 i = 3 [packed = true];        // "list(int)"
+    repeated float f = 4 [packed = true];        // "list(float)"
+    repeated bool b = 5 [packed = true];         // "list(bool)"
+    repeated DataType type = 6 [packed = true];  // "list(type)"
+    repeated Edge edges = 8;             // "list(edges)"
+  }
+  // LINT.ThenChange(https://www.tensorflow.org/code/tensorflow/c/c_api.cc)
+
+  oneof value {
+    string s = 2;                 // "string"
+    int64 i = 3;                 // "int"
+    float f = 4;                 // "float"
+    bool b = 5;                  // "bool"
+    DataType type = 6;           // "type"
+    Edge edge = 8;      // "edge"
+    ListValue list = 1;          // any "list(...)"
+
+    // This is a placeholder only used in nodes defined inside a
+    // function.  It indicates the attr value will be supplied when
+    // the function is instantiated.  For example, let us suppose a
+    // node "N" in function "FN". "N" has an attr "A" with value
+    // placeholder = "foo". When FN is instantiated with attr "foo"
+    // set to "bar", the instantiated node N's attr A will have been
+    // given the value "bar".
+    string placeholder = 9;
+  }
+}
+enum DataType {
+  // Not a legal value for DataType.  Used to indicate a DataType field
+  // has not been set.
+  DT_INVALID = 0;
+
+  // Data types that all computation devices are expected to be
+  // capable to support.
+  DT_FLOAT = 1;
+  DT_DOUBLE = 2;
+  DT_INT32 = 3;
+  DT_UINT8 = 4;
+  DT_INT16 = 5;
+  DT_INT8 = 6;
+  DT_STRING = 7;
+  DT_COMPLEX64 = 8;  // Single-precision complex
+  DT_INT64 = 9;
+  DT_BOOL = 10;
+  DT_QINT8 = 11;     // Quantized int8
+  DT_QUINT8 = 12;    // Quantized uint8
+  DT_QINT32 = 13;    // Quantized int32
+  DT_BFLOAT16 = 14;  // Float32 truncated to 16 bits.  Only for cast ops.
+  DT_QINT16 = 15;    // Quantized int16
+  DT_QUINT16 = 16;   // Quantized uint16
+  DT_UINT16 = 17;
+  DT_COMPLEX128 = 18;  // Double-precision complex
+  DT_HALF = 19;
+  DT_RESOURCE = 20;
+  DT_VARIANT = 21;  // Arbitrary C++ data types
+  DT_UINT32 = 22;
+  DT_UINT64 = 23;
+
+
+  // Do not use!  These are only for parameters.  Every enum above
+  // should have a corresponding value below (verified by types_test).
+  DT_FLOAT_REF = 101;
+  DT_DOUBLE_REF = 102;
+  DT_INT32_REF = 103;
+  DT_UINT8_REF = 104;
+  DT_INT16_REF = 105;
+  DT_INT8_REF = 106;
+  DT_STRING_REF = 107;
+  DT_COMPLEX64_REF = 108;
+  DT_INT64_REF = 109;
+  DT_BOOL_REF = 110;
+  DT_QINT8_REF = 111;
+  DT_QUINT8_REF = 112;
+  DT_QINT32_REF = 113;
+  DT_BFLOAT16_REF = 114;
+  DT_QINT16_REF = 115;
+  DT_QUINT16_REF = 116;
+  DT_UINT16_REF = 117;
+  DT_COMPLEX128_REF = 118;
+  DT_HALF_REF = 119;
+  DT_RESOURCE_REF = 120;
+  DT_VARIANT_REF = 121;
+  DT_UINT32_REF = 122;
+  DT_UINT64_REF = 123;
+}

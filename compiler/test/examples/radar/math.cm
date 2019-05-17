@@ -1,0 +1,279 @@
+// Perform 2D convolution producing an output with the same shape as the input image ('same')
+component convolution2d(input x[M][N], input y[k_h][k_w], output w)
+{
+
+
+    padding_h = ceiling((k_h - 1)/2);
+    padding_w = ceiling((k_w - 1)/2);
+
+    iterator m[0:M - 1];
+    iterator m_[padding_h:M + padding_h - 1];
+    iterator n[0:N - 1];
+    iterator n_[padding_w : M + padding_w - 1];
+
+    iterator i[0:k_h - 1];
+    iterator j[0:k_w - 1];
+
+    flow y_fliplr;
+    flow y_flipud;
+
+    // Need to flip the kernel twice to perform convolution
+    flipud(y, y_flipud);
+    fliplr(y_flipud, y_fliplr);
+
+    x_padded[m][n] = 0;
+
+    // Set every value other than padded values to x
+    x_padded[m_][n_] = x[m_ - padding][n - padding];
+
+    // Perform arithmetic on iterators to multiply-add the correct index of each flow of data
+    w[m][n] = sum[i][j](x_padded[m + i][n + j] * y_fliplr[i][j]);
+
+}
+
+// Perform 1D convolution producing an output with the same shape as the input ('same')
+component convolution(input x[M], input y[k], output w)
+{
+
+    padding = ceiling((k - 1)/2);
+
+    iterator m[0:M - 1];
+    iterator m_[padding:M + padding - 1];
+    iterator i[0:k-1];
+
+    flow y_flip;
+
+    flip(y, y_flip);
+
+    x_padded[m] = 0;
+
+    // Set every value other than padded values to x
+    x_padded[m_]= x[m_ - padding];
+
+    // Perform arithmetic on iterators to multiply-add the correct index of each flow of data
+    w[m] = sum[i](x_padded[m + i] * y_fliplr[i]);
+
+}
+
+// Function to produce 2D randomized complex numbers
+component crandn(input x[n][m], output y[n][m])
+{
+
+    // Need to add rng, exponenet, and imag number
+
+    iterator i[0:n-1];
+    iterator j[0:m-1];
+
+    rand_coeff = 1/(2^(0.5));
+
+    // Utilize a built-in "random()" function to produce random normal numbers across i,j iterations
+    y[i][j]= rand_coeff * (x[i][j]*random() + 1i*x[i][j]*random());
+
+}
+
+component fliplr(input in[m][n], output out[m][n])
+{
+    iterator i[0:m-1];
+    iterator j[0:n-1];
+    out[i][j] = in[m-i-1][j];
+}
+
+
+component flipud(input in[m][n], output out[m][n])
+{
+    iterator i[0:m-1];
+    iterator j[0:n-1];
+    out[i][j] = in[i][n-j-1];
+}
+
+component transpose(input in[m][n], output out[m][n])
+{
+
+    iterator i[0:m-1];
+    iterator j[0:n-1];
+
+    out[i][j] = in[j][i];
+
+}
+
+// We assume that complex numbers are expressed in 2 parts: a real part and imaginary
+component conjugate2d(input in[m][n][l], output out[m][n][l])
+{
+
+    iterator i[0:m-1];
+    iterator j[0:n-1];
+
+    out[i][j][0] = in[i][j][0];
+    out[i][j][1] = -1 * in[i][j][1];
+
+
+}
+
+component conjugate(input in[m][l], output out[m][l])
+{
+
+    iterator i[0:m-1];
+
+
+    out[i][0] = in[i][0];
+    out[i][1] = -1 * in[i][1];
+
+
+}
+
+
+component fft(input in[n], parameter length=128, output out[length])
+{
+    // iterative radix-2 FFT algorithm implemented using bit-reversal permutation.
+    q = log2(length);
+    length_extension = (n <= length) * (length - n);
+
+    iterator i[0:length-1];
+
+    // If the input vector is not equal to the length, we need to add zeros
+    // Also need to make sure the length is a power of 2
+    iterator extension[length : length - length_extension - 1];
+
+
+    out_temp[extension] = 0;
+    out_temp[i] = in[i];
+
+    flow out_rev[n];
+
+    bitrevorder(out_temp, out);
+
+    for(s=1; s <= q; s = s+1 )
+    {
+        m = 2^s;
+        w_m = e()^(-2 * 1i * pi() / m);
+        for(k=0; k < length; k = k+m )
+        {
+            w = 1;
+
+            for(j=0; j<(m/2); j = j+1)
+            {
+                t = w * out[k + j + m/2];
+                u = out[k + j];
+                out[k + j] = u + t;
+                out[k + j + m/2] = u - t;
+                w = w * w_m;
+
+            }
+        }
+    }
+
+}
+
+// Reverse ordering of bits for a given index
+component bitrevorder(input in[n], output out[n])
+{
+    iterator i[0:n-1];
+
+    bits = log2(n);
+
+    temp[n][bits];
+
+    iterator j[0:bits-1];
+
+    // Assign each binarized vector of 'in' to 'temp'
+    temp[i] = bin(in[i]);
+
+    // Reverse the ordering of the bits in the second index of 'temp'
+    temp[i][j] = temp[i][bits - j -1];
+
+    // Convert the binary values of temp to integers and output
+    out[i] = int(temp[i]);
+
+
+
+}
+
+// Implementation of fftshift across 1D
+component fftshift(input ft[n], output ft_shift[n])
+{
+    iterator i[0:n/2 - 1];
+    iterator j[n/2:n - 1];
+
+    ft_shift[i] = ft[i + n/2];
+    ft_shift[j] = ft[j - n/2];
+
+}
+
+// Slow DFT implementation
+component dft_slow(input in[n], parameter length=128, output out[length])
+{
+    // Need to define e and natural logs
+    iterator i[0:n-1];
+    iterator j[0:n-1];
+
+    M[i][j] = e()^(-2 * 1i * pi() * j * i / n);
+
+    out[i] = sum[j](M[i][j]*in[j]);
+}
+
+// Explicit cross correlation across 2 dimensions
+component cross_correlation2d(input x[M][N], input y[k][k], output w)
+{
+    flow y_flip[k][k];
+
+    fliplr(y, y_flip);
+    convolution2d(x,y,w);
+
+}
+
+component flip(input in[n], output out[n])
+{
+    iterator i[0:n-1];
+    out[i] = in[n-i-1];
+}
+component cross_correlation(input x[M], input y[k], output w)
+{
+    flow y_flip[k];
+
+    flip(y, y_flip);
+    convolution(x, y, w);
+
+}
+
+
+component cmp_fft(input in[n], parameter length=128, output out[length])
+{
+    // iterative radix-2 FFT algorithm implemented using bit-reversal permutation.
+    q = log2(length);
+    length_extension = (n <= length) * (length - n);
+
+    iterator i[0:length-1];
+
+    // If the input vector is not equal to the length, we need to add zeros
+    // Also need to make sure the length is a power of 2
+    iterator extension[length : length - length_extension - 1];
+
+
+    out_temp[extension] = 0;
+    out_temp[i] = in[i];
+
+    flow out_rev[n];
+
+    bitrevorder(out_temp, out);
+
+    for(s=1; s <= q; s = s+1 )
+    {
+        m = 2^s;
+        w_m = e()^(-2 * 1i * pi() / m);
+        for(k=0; k < length; k = k+m )
+        {
+            w = 1;
+
+            for(j=0; j<(m/2); j = j+1)
+            {
+                t = w * out[k + j + m/2];
+                u = out[k + j];
+                out[k + j] = u + t;
+                out[k + j + m/2] = u - t;
+                w = w * w_m;
+
+            }
+        }
+    }
+
+}

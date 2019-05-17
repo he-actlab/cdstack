@@ -1,0 +1,150 @@
+
+// Need to define
+// import math
+
+// Spring (src) which defines the data generation process corresponding to various parameters
+spring data_creation(output data,
+                    output pulse,
+                    parameter pulse_path,
+                    parameter file_type='csv',
+                    parameter pulse_length=13,
+                    parameter duty=0.25,
+                    parameter pulses=128,
+                    parameter toffset = 30,
+                    parameter noise_power_db=0,
+                    parameter signal_power_db=20)
+{
+    phase_shift = pi()/20;
+    samples_per_pulse = ceiling(n_chips/duty);
+    samples_total = pulses * samples_per_pulse;
+    phase_shift_per_sample = phase_shift / samples_per_pulse;
+
+
+
+    iterator samples_pp[0:samples_per_pulse - 1];
+    iterator samples_itr[0:pulses-1];
+    iterator pulse_itr[0:pulse_length-1];
+
+    // Need to convert raw data into floats
+    pulse = file_read(pulse_path, file_type, pulse_length);
+    pulse[pulse_itr] = float(pulse[pulse_itr]);
+
+    // Create noise by initialiazing flow to 1, then added randomness, and multiplying by noise power
+    flow noise_init[pulses][samples_per_pulse];
+    flow noise[pulses][samples_per_pulse];
+
+    noise_init[samples_itr][samples_pp] = 1;
+
+    randnum = crandn(noise_init, noise);
+    crandn.run();
+
+    // Noise power
+    noise[samples_itr][samples_pp] = 10^(noise_power_db/20) * noise[samples_itr][samples_pp];
+
+    // Generate first pulse
+    iterator offset_itr[toffset:toffset+n_chips-1];
+    flow first_pulse[samples_per_pulse];
+
+    // Initialize to 0, then set the end n_chips to signal power times the barker code
+    first_pulse[samples_pp] = 0;
+    first_pulse[offset_itr] = 10^(signal_power_db/10) * pulse[offset_itr - toffset];
+
+
+    // Rather than reshaping a repeated first_pulse, we generate signal by first creating
+    // a phaseshift matrix and iterating over each value in first_pulse, for all pulse samples
+
+    flow signal[pulses][samples_per_pulse];
+    flow phase_shift[pulses][samples_per_pulse];
+
+    phase_shift[samples_itr][samples_pp] = e()^((samples_itr + samples_pp)*1i*phase_shift_per_sample);
+    signal[samples_itr][samples_pp] = first_pulse[samples_pp]*phase_shift[samples_itr][samples_pp];
+
+    // No need to reshape the data because the data was constructed one pulse at a time
+    data[samples_itr][samples_pp] = noise[samples_itr][samples_pp] + signal[samples_itr][samples_pp];
+
+
+}
+
+// Process a piece of input data using an input pulse, producing RDM
+component process_data(input pulse_code[n], input data[m][n], output RDM)
+{
+    iterator i[0:n-1];
+    iterator j[0:m-1];
+
+    // Flip code and convert to 2D
+    flow pulse_code2d[1][n];
+    flow pulse_code2d_flip[1][n];
+
+    fliplr(pulse_code2d, pulse_code2d_flip);
+    fliplr.run();
+
+
+    // Need to instantiate the flows which will serve as pipes connecting components
+
+    flow pulse_code_conj[1][n];
+    flow dataPC[m][n];
+    flow dataCT[n][m];
+    flow dataFFT[n][m];
+    flow RDM[n][m];
+
+
+    conjugate2d(pulse_code2d_flip, pulse_code_conj);
+    convolution2d(data, pulse_code_conj, dataPC);
+    transpose(dataPC, dataCT);
+
+    // I implemented both fft and fftshift in one dimension,
+    // so we feed a row at a time to each using an iterator
+    fft(dataCT, dataFFT);
+    fftshift(dataFFT, RDM);
+
+    conjugate2d.run();
+    convolution2d.run();
+    transpose.run();
+    fft.run(m);
+    fftshift.run(m);
+
+}
+
+// This component combines data creation and processing components
+// and can be run any number of times
+component artificial_rdm(output rdm, parameter path)
+{
+
+    flow artificial_data;
+    flow pulse;
+
+    data_creation(artificial_data, pulse, path);
+    process_data(artificial_data, pulse, rdm);
+
+    // Create data, which is then processed as described above
+    data_creation.run();
+    process_data.run();
+}
+
+// A reservoir (sink) which writes input data to a file for usage
+reservoir store_rdm(parameter path, parameter type="csv", input rdm[n][m])
+{
+    file_write(path, type, rdm);
+}
+
+
+// A main component is where the entire program begins, accepting command line
+// arguments as input parameters
+component main(parameter path)
+{
+
+    // Need to create a flow for connecting components
+    flow rdm_output;
+
+    // Run the data creation and processing steps, then write the output to a file
+    artificial_rdm(rdm_output, path);
+    artificial_rdm.run();
+
+    store_rdm(path, rdm_output);
+    store_rdm.run();
+
+}
+
+// TODO:
+// - Determine possibilities for graph data creation
+// - Build evaluation methods for determining correctness of results against MATLAB

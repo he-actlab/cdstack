@@ -1,0 +1,15 @@
+digraph G {
+compound=true;
+subgraph cluster_1 {
+    label="artificial_rdm";
+    style="rounded";
+    {"2" [label="data_creation"]}
+{"3" [label="process_data"]}
+
+    }
+
+{"4" [label="store_rdm"]}
+{"2" [label="data_creation"]} -> {"3" [label="process_data"]} [label="artificial_data"] ;
+{"2" [label="data_creation"]} -> {"3" [label="process_data"]} [label="pulse"] ;
+{"3" [label="process_data"]} -> {"4" [label="store_rdm"]} [label="rdm_output"] [ lhead=cluster_1];
+}

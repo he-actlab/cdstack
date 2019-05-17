@@ -1,0 +1,56 @@
+
+component softmax(input float in[n], output float out[n])
+{
+  iterator i[0:n-1];
+
+  total = sum[i](e^in[i]);
+  out[i] = (e^in[i])/total;
+
+}
+
+component sigmoid(input float in[n][m], output float out[n][m])
+{
+  iterator i[0:n-1];
+  iterator j[0:m-1];
+
+  out[i][j] = 1.0 / (1.0 + e^(-in[i][j]));
+}
+
+spring generate_image(output float x[m][n], parameter str fname)
+{
+
+}
+
+component hidden_layer(input float in[m][n], state float w[n][l], output float out[m][l])
+{
+    iterator i[0:m-1];
+    iterator j[0:l-1];
+    iterator k[0:n-1];
+    a[i][j] = sum[k](in[i][k]*w[k][j]);
+    sigmoid(a, out);
+
+}
+
+component classification_layer(input float in[m][n], state float w[n][l], output float out[m])
+{
+    iterator i[0:m-1];
+    iterator j[0:l-1];
+    iterator k[0:n-1];
+    a[i][j] = sum[k](in[i][k]*w[k][j]);
+    sigmoid(a, out);
+
+}
+
+
+
+component forward_pass(input float x[m][n], state float w[n][l], output int y)
+{
+    encoded_output
+    hidden_layer(x, w, )
+}
+
+// Starting point in the program
+component main(parameter argv)
+{
+
+}

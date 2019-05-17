@@ -1,0 +1,66 @@
+component fft(input complex in[n], output complex out[length], parameter int length=128)
+{
+
+    iterator i[0:length-1];
+    flow complex out_rev[n];
+    flow complex out_temp[length];
+
+    // iterative radix-2 FFT algorithm implemented using bit-reversal permutation.
+    q = log2(length);
+    length_extension[i] = (n <= length) * (length - n); // Booleans evaluate to 1 or 0
+
+
+    // If the input vector is not equal to the length, we need to add zeros
+    // Also need to make sure the length is a power of 2
+    iterator extension[length : length - length_extension - 1];
+
+
+    out_temp[extension] = 0 + 0i;
+    out_temp[i] = in[i];
+
+
+    bitrevorder(out_temp, out_rev);
+
+    for(s=1; s <= q; s = s+1 )
+    {
+        m = 2^s;
+        w_m = e()^(-2 * 1i * pi() / m);
+
+        for(k=0; k < length; k = k + m )
+        {
+            w = 1;
+
+            for(j=0; j<(m/2); j = j+1)
+            {
+                t = w * out[k + j + m/2];
+                u = out[k + j];
+                out[k + j] = u + t;
+                out[k + j + m/2] = u - t;
+                w = w * w_m;
+
+            }
+        }
+    }
+
+}
+
+// Reverse ordering of bits for a given index
+component bitrevorder(input float in[n], output float out[n])
+{
+    iterator i[0:n-1];
+    bits = log2(n);
+    flow complex temp[n][bits];
+    iterator j[0:bits-1];
+    // Assign each binarized vector of 'in' to 'temp'
+    temp[i] = bin(in[i]);
+    // Reverse the ordering of the bits in the second index of 'temp'
+    temp[i][j] = temp[i][bits - j -1];
+    // Convert the binary values of temp to integers and output
+    out[i] = int(temp[i]);
+
+}
+
+component main()
+{
+    bitrevorder();
+}

@@ -1,0 +1,19 @@
+component matmul(input float A[N][M], input float B[M][P], output float C[N][P])
+{
+
+    iterator i[0:N-1];
+    iterator j[0:P-1];
+    iterator k[0:M-1];
+
+    A[i][j] = sum[k](B[i][k]*C[k][j]);
+
+}
+
+component main()
+{
+    flow float C[5][5];
+    flow float D[5][5];
+    flow float E[5][5];
+
+    matmul(C,D,E);
+}

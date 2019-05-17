@@ -1,0 +1,82 @@
+component linear_regression(input x[n], input y, state w[n], parameter mu=1.0)
+{
+
+    iterator i[0:m];
+
+    // Pop values off of the queue and perform operations on them,
+    // updating a maintained state flow
+    flow g[m];
+
+
+    h = sum[i](w[i] * x[i]);
+    d = h - y;
+    g[i] = d * x[i];
+
+    // SGD added
+    g[i] = mu * g[i];
+    w[i] = w[i] - g[i];
+
+}
+
+
+// Need to define
+spring training_record(parameter path, parameter type="csv",
+                      output x, output y)
+{
+    // Read a file, one line at a time to populate a FIFO queue
+    lines = file_read(path, type, 3);
+
+    // The arguments below will format the data prior to adding to the output
+    // queues
+    x[0] = float(lines[0][0]);
+    x[1] = float(lines[1][0]);
+    y = float(lines[2][0]);
+
+
+
+}
+
+component training_process(parameter path, output w)
+{
+    // First, create two flows which correspond to communication FIFOs
+    flow x;
+    flow y;
+
+
+    // Instantiate a component with empty queues, knowing their location and
+    // method of communication
+    training_record(path, x, y);
+    linear_regression(x, y, w, 1.0);
+
+    // While the queues are populated, continuously run them
+    training_record.run();
+    linear_regression.run();
+
+}
+
+reservoir trained_model(parameter path, parameter type="csv", input w)
+{
+
+    file_write(path, type, w);
+
+}
+
+// Starting point in the program
+component main(parameter argv)
+{
+    // Instantiation of a flow, which is a queue
+    flow w;
+
+    // Component Instantiation, results in the creation of a
+    // communication channel  between components
+    tp = training_process(argv[0], w);
+
+    for (i=0; i<argv[2] ; i=i+1)
+    {
+        // Component execution runs the component code until the queue is empty
+        tp.run();
+    }
+
+    trained_model(argv[1], w);
+    trained_model.run();
+}

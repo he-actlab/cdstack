@@ -1,0 +1,166 @@
+.cinst test$a
+read i32 $t0, $q2
+read i32 $t0, $q3
+
+begin: mul i32 $t1, $t0, 2
+
+
+.cend
+
+// Instantiation mapping
+.cbegin a$1
+      .input $q2($c1) [1 x i32]
+      .output $q3($c2) [1 x i32]
+.cend
+
+// Component code which can be reused
+.cbegin a
+      read i32 $t0, $c1
+      mul i32 $t1, $t0, 2
+      write i32 $c2, $t1
+.cend
+
+// Component where a$1 is ran
+.cinst run_a
+    ...
+    run a$1
+    ...
+.cend
+
+.cbegin ab
+      read i32 $t0, $q0
+      read i32 $t1, $q1
+      add i32 $t2, $t0, $t1
+      write i32 $q2, $t2
+      wait a
+      wait b
+.cend
+
+component ab(input q0, input q1, output q4)
+{
+
+  flow q3;
+  q2 = q0 + q1;
+
+  a(q2, q3);
+  b(q3, q4);
+
+}
+
+
+.cinst b
+      .input $q3 [1 x i32]
+      .output $q4 [1 x i32]
+.cend
+
+.cbegin b
+      read i32 $t0, $q3
+      div i32 $t1, $t0, 2
+      write i32 $q4, $t1
+.cend
+
+.cbegin main
+  bind_input $q0, ab
+  bind_input $q1, ab
+  bind_output $q4, b
+  init ab
+  wait ab
+.cend
+
+component a(input q2, output q3)
+{
+  q3 = q2 * 2;
+}
+
+component b(input q3, output q4)
+{
+  q4 = q3 / 2;
+}
+
+
+
+
+
+component main()
+{
+
+    flow q0, q1, q4;
+    ab = ab_def(q0, q1, q4);
+
+    ab.run();
+
+}
+
+
+
+x_padded[m + i][n + j]
+
+iter $i3, $(i0)
+
+.cbegin main
+  run read_integers$1
+  wait double_filter$1
+  wait double_stack$1
+  wait store_data$1
+.cend
+
+
+$c --> component queue
+$q --> global queue
+$t --> temporary register
+$i --> iterator
+
+```
+iterator k[0:t-1];
+iterator i[0:3];
+
+result[i] = sum[k](input[i+k]*kernel[k])
+```
+; $i0 = [0,1,2] --> ; corresponds to 'k' iterator
+; $i1 = [0,1,2,3] --> corresponds to 'i' iterator
+; $i2 = [0,1,2,1,2,3,2,3,4,3,4,5] --> 'i+k'
+; $i3 = [0,1,2,3,4,5,6,7,8,9,10,11] --> stores results in order
+; $i4 = [0,1,2,0,1,2,0,1,2,0,1,2] --> repeated kernel indices
+
+
+iter $i0, 0, 2
+iter $i1, 0, 3
+iter $i3, $i0, $i1 ; creates temp destination offsets for sum instruction
+itadd $i2,$i0,$i1 ; adds each permutation of $i0,$i1
+extend $i4, $i0, $i1 ; replicates the kernel offsets
+mul [12 x i32]  $i3($t2), $i2($t1), $i4($t2)
+sum $i1($t3),$i0($t2)
+```
+
+[0,1,2,1,2,3,2,3,4,3,4,5] * base($t1) - 1 --> tensor sum
+[0,1,2,0,1,2,0,1,2,0,1,2] * base($t2) - 1
+
+[0,0,0,0,1,1,1,1,2,2,2,2]
+
+------------------------
+
+iterator i[0:2]; // Output height dimension
+iterator j[0:2]; // Output width dimension
+iterator kH[0:1]; // Kernel height
+iterator kW[0:1]; // Kernel width
+
+// Input image = 4x4, kernel = 2x2, valid convolution, stride 1, produces 3x3 output
+out[i][j] = sum[kH][kW](image[i + kH][j + kW] * kernel[kH][kW]);
+
+
+
+iter $i0, 0, 2 ; corresponds to 'i' iterator
+iter $i1, 0, 2 ; corresponds to 'j' iterator
+iter $i2, 0, 1 ; corresponds to 'kH' iterator
+iter $i3, 0, 1 ; corresponds to 'kW' iterator
+
+i,j = (size(i) * i + j) + base
+
+
+
+iter $i4, $i0, $i2
+itadd $i2,$i0,$i1
+mul
+extend $i4, $i0, $i1
+mul [12 x i32]  $i3($t2), $i2($t1), $i4($t2)
+sum $i1($t3), $i0($t2)

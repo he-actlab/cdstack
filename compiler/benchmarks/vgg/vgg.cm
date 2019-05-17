@@ -1,0 +1,163 @@
+component convolution(input float x[M][N][C], state float kernels[KH][KW][C][F], output float result[M][N][F],
+    parameter int stride=1)
+{
+
+
+    padding_h = ceiling((KH - stride)/2.0);
+    padding_w = ceiling((KW - stride)/2.0);
+
+    iterator m[0:M - 1];
+    iterator m_[padding_h:M + padding_h - 1];
+    iterator n[0:N - 1];
+    iterator n_[padding_w : M + padding_w - 1];
+
+    iterator i[0:KH-1];
+    iterator j[0:KW-1];
+    iterator k[0:C-1];
+    iterator l[0:F-1];
+
+    // Set internal values of padded input to the input, rest zeros
+    padded_input = 0;
+
+    padded_input[m_][n_][k][l] = in[m_-padding_h][n_-padding_w][l];
+
+    // Rotate kernels 90 degrees
+    rotated_kernels[i][j][k][l] = kernels[KH-i-1][j][k][l];
+    rotated_kernels[i][j][k][l] = kernels[i][KW-j-1][k][l];
+
+
+    // Convolution with ReLU activation
+    conv[m][n][l] = sum[i][j][k](padded_input[m + i][n + j][k] * kernel[i][j][k]);
+    result[m][n][l] = 0 > conv[m][n][l] ? 0 : conv[m][n][l];
+
+
+
+}
+
+component maxpool(input float x[M][N][C], output float x_[m][n][c],parameter int size=2, parameter int stride=2)
+{
+
+    dim1 = ceiling(1 + (M - size)/stride);
+    dim2 = ceiling(1 + (N - size)/stride);
+
+    iterator i[0:dim1 - 1];
+    iterator j[0:dim2 - 1];
+    iterator k[0:C-1];
+
+
+    iterator kh[0:size-1];
+    iterator kw[0:size-1];
+
+
+    x_[i][j][k] = max[kh][kw](x[i*stride + kh][j*stride + kw][k]);
+
+}
+
+component softmax(input float x[M], output float y[M])
+{
+    iterator i[0:M-1];
+    iterator j[0:M-1];
+
+    y[i] = e()^x[i] / sum[j](e()^(x[j]));
+
+}
+
+
+
+
+//Flatten layer
+component flatten(input float x[M][N][C], output float y[K])
+{
+
+    iterator i[0:M-1];
+    iterator j[0:N-1];
+    iterator k[0:C-1];
+
+    y[i*N*C+j*C+k] = x[i][j][k];
+
+}
+
+component dense_relu(input float x[M], state float w[N][M], state float b[N], output float y[N])
+{
+
+    iterator i[0:M-1];
+    iterator j[0:N-1];
+
+    fully_connected[j] =sum[i](x[i]*w[j][i]) + b[j];
+    y[j] = 0 > fully_connected[j] ? 0 : fully_connected[j];
+
+}
+
+component dense_softmax(input float x[M], state float w[N][M], state float b[N], output float y[N])
+{
+
+    iterator i[0:M-1];
+    iterator j[0:N-1];
+
+    flow float activation[N];
+    activation[j] = sum[i](x[i]*w[j][i]) + b[j];
+
+    softmax(activation, y);
+
+}
+component vgg(input float image[N][N][D], input float weights[M][L][K], output int classification[O])
+{
+    flow float image[224][224][3];
+    //Filters state flows
+    flow float filters_1[3][3][3][64], filters_2[3][3][3][64], filters_3[3][3][3][128], filters_4[3][3][3][128];
+    flow float filters_5[3][3][3][256], filters_6[3][3][3][256], filters_7[3][3][3][256];
+    flow float filters_8[3][3][3][512], filters_9[3][3][3][512], filters_10[3][3][3][512];
+    flow float filters_11[3][3][3][512], filters_12[3][3][3][512], filters_13[3][3][3][512];
+
+    // Inputs/outputs between each layer
+    flow float x_1[224][224][64], x_2[224][224][64], x_3[112][112][64];
+    flow float x_4[112][112][128], x_5[112][112][128], x_6[56][56][128];
+    flow float x_7[56][56][256], x_8[56][56][256], x_9[56][56][256], x_10[28][28][256];
+    flow float x_11[28][28][512], x_12[28][28][512], x_13[28][28][512], x_14[14][14][512];
+    flow float x_15[14][14][512], x_16[14][14][512], x_17[14][14][512], x_18[7][7][512];
+    flow float x_19[4096], x_20[4096],x_21[4096], x_22[1000];
+
+    // Weights and biases
+    flow float w_1[4096][4096], w_2[4096][4096], w_3[1000][4096];
+    flow float b_1[4096], b_2[4096], b_3[1000];
+
+    // Block 1
+    convolution2d(image, filters_1, x_1 );
+    convolution2d(x_1, filters_2, x_2 );
+    maxpool(x_2, x_3);
+
+    // Block 2
+    convolution2d(x_3, filters_3, x_4);
+    convolution2d(x_4, filters_4, x_5);
+    maxpool(x_5, x_6);
+
+    // Block 3
+    convolution2d(x_6, filters_5, x_7);
+    convolution2d(x_7, filters_6, x_8);
+    convolution2d(x_8, filters_7, x_9);
+    maxpool(x_9, x_10);
+
+    // Block 4
+    convolution2d(x_10, filters_8, x_11);
+    convolution2d(x_11, filters_9, x_12);
+    convolution2d(x_12, filters_10, x_13);
+    maxpool(x_13, x_14);
+
+    convolution2d(x_14, filters_11, x_15);
+    convolution2d(x_15, filters_12, x_16);
+    convolution2d(x_16, filters_13, x_17);
+    maxpool(x_17, x_18);
+
+    flatten(x_18, x_19);
+
+    dense_relu(x_19, w_1, b_1, x_20);
+    dense_relu(x_20, w_2, b_2, x_21);
+    dense_softmax(x_21, w_3, b_3, x_22);
+
+}
+
+component main()
+{
+
+    vgg(x);
+}

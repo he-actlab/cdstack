@@ -1,0 +1,52 @@
+component robot(input velocity, input angular_velocity, state position, state angle, parameter float mass=0.5, parameter float gravity=9.81)
+{
+
+
+	// state transition for position
+	pos[0].dot = vel*cos(angle);
+	pos[1].dot = vel*sin(angle);
+
+	// state transition for angle
+	angle.dot = mass*grav*ang_vel;
+
+	// input constraints
+	vel.lower_bound = -2; // magnitude of velocity cannot be lower than 2 m/s
+	vel.upper_bound = 2;
+}
+
+component move_robot(input mobrob1,input mobrob2
+	reference desired_position[2]) // desired position of robot
+{
+	// iterator variables
+	iter i[0:2];
+
+	// weights on penalties
+	param weight_1[2] = {2, 5};
+	param weight_2[2] = {3, 1};
+
+	// leader move to target
+	mobrob1_err[2];
+	mobrob1_err[0] = mobrob1.position[0] - desired_position[0];
+	mobrob1_err[1] = mobrob1.position[1] - desired_position[1];
+
+	penalty mobrob1_penalty;
+	mobrob1_penalty = sum[i](mobrob1_err[i]*weight_1[i]*mobrob1_err[i]);
+
+	// follow the leader
+	mobrob2_err[2];
+	mobrob2_err[0] = mobrob2.position[0] - mobrob1.position[0] - 1;
+	mobrob2_err[1] = mobrob2.position[1] - mobrob1.position[1] - 1;
+
+	penalty mobrob2_penalty;
+	mobrob2_penalty = sum[i](mobrob2_err[i]*weight_2[i]*mobrob2_err[i]);
+}
+
+// instantiate robots
+MobileRobot mobrob1;
+MobileRobot mobrob2;
+
+// targets
+reference desired_position[2];
+
+// map robot objects to task
+moveTo[mobrob1, mobrob2](desired_position);

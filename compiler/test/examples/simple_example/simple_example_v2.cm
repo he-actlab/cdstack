@@ -1,0 +1,68 @@
+
+// Use iterator to cast the values read from the file to int
+spring read_integers(output int f1[n], output int f2[m], parameter string type='csv', parameter string path1='dataset1.txt', parameter string path2='dataset2.txt')
+{
+
+  iterator i[0:n-1];
+  iterator j[0:m-1];
+
+  lines_f1 = fread(path1, type);
+  f1[i] = int(lines_f1[i]);
+
+  lines_f2 = fread(path2, type);
+  f2[j] = int(lines_f2[j]);
+
+}
+component filter_values(output int y[m], input int x[m], parameter int threshold=10)
+{
+    iterator i[0:m-1];
+    y[i] = x[i] > threshold ? x[i] + (threshold / 2) : 0;
+}
+
+component double_values(output int y[n], input int x[n])
+{
+    iterator i[0:n-1];
+    y[i] = x[i*2] * 2;
+
+}
+
+component stack_flows(output int y[n][m], input int x[n], parameter int stacks=4)
+{
+    iterator i[0:stacks-1];
+    iterator j[0:stacks-1];
+    y[i][j] = x[i][j];
+}
+
+
+component double_filter(output int y[n], input int x[n])
+{
+    flow int filter1[n];
+
+    filter_values(filter1, x);
+    filter_values(y, filter1, 15);
+
+}
+component double_stack(output int doubled[n], output int stacked[n][m], input int x[n])
+{
+    double_values(doubled, x);
+    stack_flows(stacked, x);
+}
+
+reservoir store_data(input int doubled[n], input int stacked[n][m], input int filtered[n], parameter string type='csv', parameter string path='results.csv')
+{
+    iterator i[0:n-1];
+    iterator j[0:m-1];
+
+    data[j] = sum[i]((doubled[i] + stacked[i][j]) * stacked[i][j]);
+    fwrite(data, path, type);
+}
+
+component main()
+{
+    flow int f1[4], f2[4], filtered[4], doubled[4], stacked[4][4];
+
+    read_integers(f1, f2);
+    double_filter(filtered, f1);
+    double_stack(doubled, stacked, f2);
+    store_data(doubled, stacked, filtered);
+}

@@ -1,0 +1,69 @@
+spring read_data(output float x[n], parameter string path, parameter string type='csv')
+{
+    iterator i[0:n-1];
+
+    lines = fread(path1, type);
+    x[i] = float(lines[i]);
+
+}
+
+component assignment(input float x[m], state float centroids[centers][m], output int cluster_assignment)
+{
+    iterator i[i:centers-1];
+    iterator j[0:m-1];
+
+    distances[i] = sum[j]((x[j] - centroids[i][j])^2.0)^(0.5);
+    cluster_assignment = argmin[i](distances[i]);
+}
+
+component update_centroid_sum(input float x[m], input int cluster_assignment, state float centroids_sums[centers][m], state float cluster_sizes[centers])
+{
+    iterator i[0:m-1];
+
+    centroids_sum[cluster_assignment][i] = centroids_sum[cluster_assignment][i] + x[i];
+    cluster_sizes[cluster_assignment] = cluster_sizes[cluster_assignment] + 1;
+
+}
+
+component kmeans_train(input float x[m], state float centroids[centers][m], output float centroid_sums[centers][m], output float cluster_sizes[centers])
+{
+  flow int cluster_assignment[0];
+	assignment(x, centroids, cluster_assignment);
+	update_centroid_sum(x, cluster_assignment, centroid_sums, cluster_sizes);
+}
+
+component update_centroids(input float centroid_sums[centers][m], input float cluster_sizes[centers], output float new_centroids[centers][m])
+{
+    iterator i[0:centers-1];
+    iterator  j[0:m-1];
+
+    new_centroids[i][j] = centroid_sums[i][j]/cluster_sizes[i];
+}
+
+reservoir store_data(input float centroids[n][m], parameter string path, parameter string type='csv')
+{
+
+    fwrite(centroids, path, type);
+}
+
+component main()
+{
+    flow float train_data[784], centroids[10][784], new_centroids[10][784];
+    flow int cluster[0];
+    iterator i[0:9];
+    iterator j[0:783];
+
+    // Initialize cluster sizes and new centroids
+    flow int cluster_sizes[10];
+    flow float centroid_sums[10][784];
+
+    // Naively initialize centroids
+    centroids[i][j] = 0;
+
+    // Read training data
+    read_data(train_data, 0);
+
+    kmeans_train(train_data, centroids, centroid_sums, cluster_sizes);
+    update_centroids(centroid_sums, cluster_sizes, centroids);
+    store_data(new_centroids, 0);
+}
