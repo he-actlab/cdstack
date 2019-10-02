@@ -1,0 +1,101 @@
+// Need support for the following algorithms:
+
+// SVM
+// Logistic Regression
+// Linear Regression
+// Decision Tree
+// Collaorative filtering
+
+// https://github.com/microsoft/onnxruntime/blob/bf6f19c6b729ee2b5e067f48b30bb412951b828a/onnxruntime/core/providers/cpu/ml/svmregressor.cc
+
+component poly_kernel(input float x[m][n], output float out[m][m], param float gamma, param float coef0, param int degree){
+    index i[0:m-1], j[0:m-1], k[0:n-1];
+
+    out[i][j] = (gamma*sum[k](x[i][k]*x[j][k]) + coef0)^degree;
+
+}
+
+component rbf_kernel(input float x[m][n], output float out[m][m], param float gamma, param float coef0, param int degree){
+    index i[0:m-1], j[0:m-1], k[0:n-1];
+
+    out[i][j] = e()^(-gamma*sum[k]((x[i][k] - x[j][k])^2);
+
+}
+
+component sigmoid_kernel(input float x[m][n], output float out[m][m], param float gamma, param float coef0, param int degree){
+    index i[0:m-1], j[0:m-1], k[0:n-1];
+
+    out[i][j] = tanh(gamma*sum[k](x[i][k]*x[j][k]) + coef0);
+
+}
+
+component linear_kernel(input float x[m][n], output float out[m][m], param float gamma, param float coef0, param int degree){
+    index i[0:m-1], j[0:m-1], k[0:n-1];
+
+    out[i][j] = sum[k](x[i][k]*x[j][k]);
+
+}
+
+component libsvm_svm_regressor(input float X[N],
+                                output float Y[pts],
+                                state float support_vectors[m],
+                                param float coeff[cn],
+                                param float kernel_params[kn],
+                                param str kernel_type="linear",
+                                param int n_supports=0,
+                                param int one_class=0,
+                                param str post_transform="NONE",
+                                param float rho=1.0
+                                ){
+    index i[0:n-1];
+    flow float x_out[m][n];
+
+    linear_kernel()
+
+
+
+}
+
+
+component liblinear_svm_regressor(){
+
+}
+
+// https://github.com/microsoft/onnxruntime/blob/99556b111d2d5f7a722d21b504c9d8a0122a18a6/onnxruntime/core/providers/cpu/ml/svmclassifier.h
+// https://github.com/microsoft/onnxruntime/blob/bf6f19c6b729ee2b5e067f48b30bb412951b828a/onnxruntime/core/providers/cpu/ml/svmclassifier.cc
+component liblinear_svm_classifier(){
+
+}
+
+component libsvm_svm_classifier(input float X[N],
+                                output float [pts],
+                                state float support_vectors[m],
+                                param float coeff[cn],
+                                param str cls_labels[n_classes],
+                                param int classes[n_classes],
+                                param float kernel_params[kn],
+                                param str kernel_type="linear",
+                                param int n_supports=0,
+                                param int one_class=0,
+                                param str post_transform="NONE",
+                                param float rho=1.0){
+
+
+}
+
+// https://github.com/microsoft/onnxruntime/blob/bf6f19c6b729ee2b5e067f48b30bb412951b828a/onnxruntime/core/providers/cpu/ml/linearclassifier.cc
+component linear_classifier(){
+
+}
+
+// https://github.com/microsoft/onnxruntime/blob/bf6f19c6b729ee2b5e067f48b30bb412951b828a/onnxruntime/core/providers/cpu/ml/linearregressor.cc
+component linear_regression(){
+
+}
+
+// https://github.com/microsoft/onnxruntime/blob/bf6f19c6b729ee2b5e067f48b30bb412951b828a/onnxruntime/core/providers/cpu/ml/tree_ensemble_classifier.cc
+component tree_ensemble(){
+
+}
+
+// https://github.com/microsoft/onnxruntime/tree/bf6f19c6b729ee2b5e067f48b30bb412951b828a/onnxruntime/core/providers/cpu/ml

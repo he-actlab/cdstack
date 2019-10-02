@@ -1,0 +1,43 @@
+// Need to define
+// spring training_record(output float x[m], output float y, param str type="csv", param str path="dataset1.txt")
+// {
+//     index i[0:m-1];
+//     // Read a file, one line at a time to populate a FIFO queue
+//     lines = fread(path, type, m+1, 1);
+//
+//     // The arguments below will format the data prior to adding to the output
+//     // queues
+//     x[i] = float(lines[i]);
+//     y = float(lines[m]);
+// }
+
+
+
+component logistic_regression(input float x[m], output float y, state float w[m])
+{
+
+    index i[0:m-1];
+
+    y = sigmoid(sum[i](w[i] * x[i]));
+
+}
+
+
+// reservoir trained_model(input float w[m], param str path, param str type="csv"){
+//
+//     fwrite(path, type, w);
+//
+// }
+
+// Starting point in the program
+component main()
+{
+    flow float w_model[3];
+    flow float x_input[3];
+    flow float y_output;
+
+    // training_record(x, y,"csv", argv[1]);
+    logistic_regression(x_input, y_output, w_model);
+
+    // trained_model(w, argv[1], "results.csv");
+}
