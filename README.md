@@ -1,77 +1,41 @@
-# Welcome to CMLang!
+# Welcome to CMStack!
 
-CMLang is a high-level language and compiler which produces AxelVM IR for further compilation on heterogenous hardware.
+CMStack is a high-level language and compiler which produces an IR for translation to hetereogenous hardware.
 
 ### COMPILER
 
 ### Dependencies  
-If you would like to generate the lexer and parser, please refer to the "To generate lexer and parser directly" section below. Otherwise, you only need Python 3.4.3 or higher, in order to successfully run the compiler. If you would like to view the graphical representations of the compiler-generated dataflow graphs, Graphviz - graph visualization software - is needed. Please refer to the respective online resources in order to install them on your environment.  
+If you would like to generate the lexer and parser, please refer to the "To generate lexer and parser directly" section below. Otherwise, you only need Python 3.4.3 or higher, in order to successfully run the compiler. If you would like to view the graphical representations of the compiler-generated dataflow graphs, Graphviz - graph visualization software - is needed. Please refer to the respective online resources in order to install them on your environment.
+
+In addition, code generation depends on [loopy](https://github.com/inducer/loopy) as a submodule. After cloning this repository, you will need to run the following commands in order to install loopy:
+
+1. git submodule update --init --recursive
+2. cd loopy/
+3. pip3 install -r requirements.txt --user
+4. python3 setup.py install --user
+
+If you run into any issues installing loopy, refer to their documentation [here](https://documen.tician.de/loopy/misc.html#option-1-from-source-no-pyopencl-integration)
 
 
-### How to invoke the compiler   
-To run the compiler, run the following command:
-
-```
-$ python3 main.py <*.t file>
-```
-
-
-This generates a JSON representation of data flow graph and schedule each in a separate file. It also creates a Dot file for a visual representation of data flow graph. Note that this reflects the graph after scheduling is done; every node in the same horizontal level is the operations scheduled to execute in the same cycle. Run the following command to generate a jpeg file:
-
-```
-$ dot -Tjpeg <*.dot file> -o <filename>.jpeg
-```  
-
-### To generate lexer and parser directly
-*Dependencies* The parser is implemented with ANTLR v4.5 parser generator, with Python as the target language. You also need Java Runtime Environment 1.6 or higher in order to run the compiler, since ANTLR is primarily written in Java. 
-  
-Run the following command:
+### How to invoke the compiler to produce protobuf files  
+To run the compiler on cdlang code, run the following command:
 
 ```
-$ java -cp "/usr/local/lib/antlr-4.5-complete.jar:$CLASSPATH" org.antlr.v4.Tool -Dlanguage=Python3 Tabla.g
+$ python3 cmstack/cmstack_entry.py cmlang --input <path/to/cdlang/file.cm>
 ```
 
-If you would like to see the lexer tokens, run:
+To run the compiler using an onnx protobuf file as input, run the following command:
 
 ```
-$ python3 pygrun.py Tabla program --tokens TEST_FILE.t
-```  
-
-### Developers
-This compiler was developed by Joon Kyung Kim and Chenkai Shao, both undergraduate students at Georgia Institute of Technology. For any inquiries, please contact *jkkim@gatech.edu* or *cshao31@gatech.edu*.
-
-
-
-
-### DESIGN BUILDER
-
-The design builder converts all the configuration provided by the compiler to customize the hardware template.
-
-run: 
-```
-$ cd design-builder
-$ python builder.py
+$ python3 cmstack/cmstack_entry.py onnx --input <path/to/onnx/model.onnx>
 ```
 
+Both of these commands generate a protobuf intermediate representation of the rDFG.
 
-### HARDWARE
+### How to generate c code using the rDFG
 
-The TABLA template design is a clustered hierarchical architecture constituting 
-1. Processing Units (PUs)
-2. Processing Engines (PEs).
+In order to generate C code using the rDFG, you can run the following command:
 
-This clustered template architecture is scalable, general, and highly customizable.
-
-The code for the entire template, memory interface, FPGA wrapper is in fpga/hw-imp. 
-
-### Directory Hierarchy:
-
-fpga/hw-imp/source -> source Verilog files
-fpga/hw-imp/source/mem_interface -> source files which have the memory interface Verilog files
-fpga/hw-imp/source/ALU -> compute Verilog modules that perform the arithmetic functions
-fpga/hw-imp/source/basic -> basic multiplexer and other files
-
-To simulate this code. Change the top module in fpga/hw-imp/tb.list and run from fpga directory:
 ```
-$ make test
+$ python3 cmstack/cmstack_entry.py c --input <path/to/rdfg.pb> > <cfilename>.c
 ```
