@@ -1,0 +1,4 @@
+[submodule "loopy"]
+	path = loopy
+	url = https://github.com/inducer/loopy
+	branch = kernel_callables_v3-edit0.2
