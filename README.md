@@ -39,3 +39,8 @@ In order to generate C code using the rDFG, you can run the following command:
 ```
 $ python3 cmstack/cmstack_entry.py c --input <path/to/rdfg.pb> > <cfilename>.c
 ```
+
+
+### Developers
+
+This compiler was developed by Sean Kinzer, a PhD student at UC San Diego. For any inquiries, please contact skinzer@eng.ucsd.edu.
